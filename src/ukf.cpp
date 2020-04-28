@@ -71,6 +71,106 @@ void UKF::Prediction(double delta_t) {
    * Modify the state vector, x_. Predict sigma points, the state, 
    * and the state covariance matrix.
    */
+
+  // Developed from excercises
+  // Generate Sigma points
+  // Predict Sigma points
+  // Predict Mean and Co-Variance
+
+  VectorXd x_aug = VectorXd::Zero(n_aug_);
+  MatrixXd P_aug = MatrixXd::Zero(n_aug_, n_aug_);
+  MatrixXd Xsig_aug = MatrixXd::Zero(n_aug_, 2 * n_aug_ + 1);
+
+  x_aug.head(5) = x_;
+  x_aug(5) = 0; // velocity acceleration noise
+  x_aug(6) = 0; // angle acceleration noise
+
+  P_aug.fill(0.0);
+  P_aug.topLeftCorner(5, 5)=  P_;
+  P_aug(5, 5) = std_a_ * std_a_;
+  P_aug(6, 6) = std_yawdd_ * std_yawdd_;
+
+  MatrixXd A = P_aug.llt().matrixL();
+  Xsig_aug.col(0) = x_aug;
+  for (int i = 0; i < n_aug_; ++i)
+  {
+    Xsig_aug.col(i + 1)          = x_aug + sqrt(lambda_ + n_aug_) * A.col(i);
+    Xsig_aug.col(i + 1 + n_aug_) = x_aug - sqrt(lambda_ + n_aug_) * A.col(i);
+  } //End of Generation of Augumented Sigma points
+
+  // Predict Sigma Points
+  for (int i = 0; i < 2 * n_aug_ + 1; ++i)
+  {
+    // extract values for the state
+    double p_x = Xsig_aug(0, i);
+    double p_y = Xsig_aug(1, i);
+    double v = Xsig_aug(2, i);
+    double yaw = Xsig_aug(3, i);
+    double yawd = Xsig_aug(4, i);
+    double nu_a = Xsig_aug(5, i);
+    double nu_yawdd = Xsig_aug(6, i);
+
+    // predicted state values
+    double px_p, py_p, v_p, yaw_p, yawd_p;
+
+    // avoid division by zero
+    if (fabs(yawd) > 0.001)
+    {
+      // constant turn rate with positive yaw accelertion
+      px_p = p_x + v/yawd*(sin(yaw+yawd*delta_t) - sin(yaw)) + 0.5*delta_t*delta_t*cos(yaw)*nu_a; // 0.5*delta_t*delta_t*cos(yaw)*nu_a is noise
+      py_p = p_y + v/yawd*(-cos(yaw+yawd*delta_t) + cos(yaw)) + 0.5*delta_t*delta_t*sin(yaw)*nu_a; // 0.5*delta_t*delta_t*sin(yaw)*nu_a is noise
+      v_p = v + delta_t*nu_a;
+      yaw_p = yaw + yawd*delta_t + 0.5*nu_yawdd*delta_t*delta_t;
+      yawd_p = yawd + nu_yawdd*delta_t;
+    }
+    else
+    {
+      // straight path with zero yaw acceleration
+      px_p = p_x + v*cos(yaw)*delta_t + 0.5*delta_t*delta_t*cos(yaw)*nu_a;
+      py_p = p_y + v*sin(yaw)*delta_t + 0.5*delta_t*delta_t*sin(yaw)*nu_a;
+      v_p = v + delta_t*nu_a;
+      yaw_p = yaw + yawd*delta_t + 0.5*delta_t*delta_t*nu_yawdd;
+      yawd_p = yawd + delta_t*nu_yawdd;
+    }
+
+    // update Xsig_pred
+    Xsig_pred_(0, i) = px_p;
+    Xsig_pred_(1, i) = py_p;
+    Xsig_pred_(2, i) = v_p;
+    Xsig_pred_(3, i) = yaw_p;
+    Xsig_pred_(4, i) = yawd_p;
+  }//repeat for all columns
+
+  // From predicted Sigma Points now Predict Mean and Co-Variance of state
+  VectorXd x_predicted = VectorXd::Zero(n_x_);
+  MatrixXd P_predicted = MatrixXd::Zero(n_x_, n_x_);
+
+  // predicted state mean
+  x_predicted.fill(0.0);
+  for (int i = 0; i < 2 * n_aug_ + 1; ++i)
+  {
+      x_predicted += weights_(i) * Xsig_pred_.col(i);
+  }//iterate over sigma points
+
+  // predicated state covariance matrix
+  P_predicted.fill(0.0);
+  for (int i = 0; i < 2 * n_aug_ + 1; ++i)
+  {
+    // state difference
+    VectorXd x_diff = Xsig_pred_.col(i) - x_predicted;
+
+    //angle normalization
+    while (x_diff(3) > M_PI) x_diff(3) -= 2.0*M_PI;
+    while (x_diff(3) < -M_PI) x_diff(3) += 2.0*M_PI;
+
+    P_predicted += weights_(i) * x_diff * x_diff.transpose();
+  }//iterate over sigma points
+
+
+  // write result
+  x_ = x_predicted;
+  P_ = P_predicted;
+
 }
 
 void UKF::UpdateLidar(MeasurementPackage meas_package) {
