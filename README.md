@@ -2,7 +2,7 @@
 
 Sensor Fusion UKF Highway Project is to Track vehicles using radar and lidar measurements
 
-*This project is developed on top the udacity sendor fusion ukf started code* 
+*This project is developed using udacity sensor fusion ukf starter code* 
 
 <img src="media/ukf_highway_tracked.gif" width="700" height="400" />
 
