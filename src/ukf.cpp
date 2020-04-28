@@ -1,3 +1,4 @@
+#include <iostream>
 #include "ukf.h"
 #include "Eigen/Dense"
 
@@ -16,15 +17,21 @@ UKF::UKF() {
 
   // initial state vector
   x_ = VectorXd(5);
+  x_.fill(0.0);
 
   // initial covariance matrix
   P_ = MatrixXd(5, 5);
+  P_ << 1, 0, 0, 0, 0,
+        0, 1, 0, 0, 0,
+        0, 0, 1, 0, 0,
+        0, 0, 0, 1, 0,
+        0, 0, 0, 0, 1;
 
   // Process noise standard deviation longitudinal acceleration in m/s^2
-  std_a_ = 30;
+  std_a_ = 1.5;
 
   // Process noise standard deviation yaw acceleration in rad/s^2
-  std_yawdd_ = 30;
+  std_yawdd_ = 2;
   
   /**
    * DO NOT MODIFY measurement noise values below.
@@ -84,10 +91,53 @@ UKF::UKF() {
 UKF::~UKF() {}
 
 void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
-  /**
-   * TODO: Complete this function! Make sure you switch between lidar and radar
-   * measurements.
-   */
+    /**
+     * TODO: Complete this function! Make sure you switch between lidar and radar
+     * measurements.
+     */
+
+    if (!is_initialized_) {
+        if (meas_package.sensor_type_ == MeasurementPackage::RADAR) {
+            std::cout << "Radar Measurement Initialization " << std::endl;
+
+            double rho = meas_package.raw_measurements_[0];
+            double phi = meas_package.raw_measurements_[1];
+            double rho_dot = meas_package.raw_measurements_[2];
+
+            // set the state with the initial location and zero velocity
+            x_ << rho * cos(phi), rho * sin(phi), 0, 0, 0;
+        } else if (meas_package.sensor_type_ == MeasurementPackage::LASER) {
+            std::cout << "Lidar Measurements Initialization " << std::endl;
+
+            //set the state with initial Lidar measurements - p_x, p_y
+            x_ << meas_package.raw_measurements_[0], meas_package.raw_measurements_[1], 0, 0, 0;
+
+        } else {
+            std::cout << "invalid measurement data" << std::endl;
+        }
+
+        time_us_ = meas_package.timestamp_;
+        is_initialized_ = true;
+        return;
+    }
+
+        // compute the time elapsed between the current and previous measurements
+        // delta_t - expressed in seconds
+        double delta_t = static_cast<double>(meas_package.timestamp_ - time_us_) * 1e-6;
+        // update previous time stamp to current time stamp
+        time_us_ = meas_package.timestamp_;
+
+        Prediction(delta_t);
+
+        if (meas_package.sensor_type_ == MeasurementPackage::RADAR) {
+            std::cout << "update Radar measurement" << std::endl;
+            UpdateRadar(meas_package);
+        } else if (meas_package.sensor_type_ == MeasurementPackage::LASER) {
+            std::cout << "update Lidar measurement" << std::endl;
+            UpdateLidar(meas_package);
+        } else {
+            std::cout << "invalid measurement" << std::endl;
+        }
 }
 
 void UKF::Prediction(double delta_t) {
@@ -257,8 +307,8 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
 
     // add measurement noise covariance matrix
     MatrixXd R = MatrixXd(n_z, n_z);
-    R << std_laspx_*std_laspx_, 0, 0,
-            0, 0, std_laspy_*std_laspy_;
+    R << std_laspx_*std_laspx_, 0,
+            0, std_laspy_*std_laspy_;
     S = S + R;
 
     // update measurement and state mean and covariance
