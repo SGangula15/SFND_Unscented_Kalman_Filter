@@ -1,7 +1,7 @@
 # Sensor Fusion Nanodegree: Unscented_Kalman_Filter
 
-Sensor Fusion UKF Highway Project - Track vehicles using radar and lidar measurements
-This project is developed on top the udacity sendor fusion ukf started code. 
+Sensor Fusion UKF Highway Project is to Track vehicles using radar and lidar measurements
+*This project is developed on top the udacity sendor fusion ukf started code. 
 
 <img src="media/ukf_highway_tracked.gif" width="700" height="400" />
 
