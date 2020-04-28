@@ -1,4 +1,4 @@
-# Sensor Fusion:Unscented_Kalman_Filter
+# Sensor Fusion Nanodegree: Unscented_Kalman_Filter
 Sensor Fusion UKF Highway Project Starter Code
 
 <img src="media/ukf_highway_tracked.gif" width="700" height="400" />
